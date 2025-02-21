@@ -1,10 +1,13 @@
 import requests
+from datetime import timedelta
 from docx import Document  # Для создания DOC-файла
+import os
+from pathlib import Path
 
 # URL для запроса документов
 API_URL = "http://publication.pravo.gov.ru/api/Documents"
 
-def fetch_documents_by_date_and_authority(date, authority_id):
+def fetch_documents_by_date(date, authority_id):
     """
     Функция для получения документов за указанную дату и для указанного государственного органа.
 
@@ -30,16 +33,22 @@ def fetch_documents_by_date_and_authority(date, authority_id):
         # Возвращаем список документов
         return data.get("items", [])
     except requests.exceptions.RequestException as e:
-        print(f"Ошибка при выполнении запроса: {e}")
+        print(f"Ошибка при выполнении запроса для даты {date}: {e}")
         return []
 
 def save_to_doc(documents, output_filename="documents.docx"):
     """
-    Сохраняет список документов в файл .docx с ссылками на каждый документ.
+    Сохраняет список документов в файл .docx с ссылками на каждый документ в домашней директории.
 
     :param documents: Список документов, полученный из API
     :param output_filename: Имя выходного файла
     """
+    # Получаем путь к домашней директории пользователя
+    home_dir = str(Path.home())
+    
+    # Создаем полный путь к файлу
+    output_path = os.path.join(home_dir, output_filename)
+    
     doc = Document()  # Создаем новый документ
 
     for doc_info in documents:
@@ -58,5 +67,20 @@ def save_to_doc(documents, output_filename="documents.docx"):
         doc.add_paragraph("")
 
     # Сохраняем документ
-    doc.save(output_filename)
-    print(f"Документы успешно сохранены в файл: {output_filename}")
+    doc.save(output_path)
+    print(f"Документы успешно сохранены в файл: {output_path}")
+
+def generate_date_range(start_date, end_date):
+    """
+    Генерирует список дат между начальной и конечной датами (включительно).
+
+    :param start_date: Начальная дата
+    :param end_date: Конечная дата
+    :return: Список дат в формате DD.MM.YYYY
+    """
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        dates.append(current_date.strftime("%d.%m.%Y"))
+        current_date += timedelta(days=1)
+    return dates
