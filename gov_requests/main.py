@@ -1,12 +1,7 @@
 from datetime import datetime
 from utils import fetch_documents_by_date, generate_date_range, save_to_doc
+from constants import AUTHORITY_ID
 
-# GUID государственного органа (замените на актуальный)
-authority_id = {"Правительство РФ":"8005d8c9-4b6d-48d3-861a-2a37e69fccb3",
-                "Президент Российской Федерации":"225698f1-cfbc-4e42-9caa-32f9f7403211",
-                "Министерство цифрового развития, связи и массовых коммуникаций Российской Федерации":"1ac1ee36-2621-4c4f-917f-9bffc35d4671",
-                "Федеральная служба по надзору в сфере связи, информационных технологий и массовых коммуникаций":"bc7a65a3-80ef-4c88-8214-3ec5b29f9997"
-                }
 
 def main():
     # Пример использования
@@ -28,23 +23,26 @@ def main():
     date_range = generate_date_range(start_date, end_date)
 
     # Собираем все документы за указанный период по каждому органу власти
-    all_documents = []
-    for authority_name, guid in authority_id.items():
+    all_documents_by_authority = {}  # Словарь для хранения документов по органам
+    for authority_name, guid in AUTHORITY_ID.items():
         print(f"\nОбработка документов для: {authority_name}")
         
+        authority_documents = []  # Список для документов текущего органа
         for date in date_range:
             print(f"Запрос документов за {date}...")
-            # Передаем только GUID вместо словаря с названием органа
             documents = fetch_documents_by_date(date, guid)
             if documents:
-                all_documents.extend(documents)
+                authority_documents.extend(documents)
             
+        if authority_documents:
+            all_documents_by_authority[authority_name] = authority_documents
         print(f"Обработка {authority_name} завершена")
 
     # Итоговая статистика и сохранение
-    if all_documents:
-        print(f"\nОбщее количество найденных документов: {len(all_documents)}")
-        save_to_doc(all_documents, "output_documents.docx")
+    total_docs = sum(len(docs) for docs in all_documents_by_authority.values())
+    if total_docs > 0:
+        print(f"\nОбщее количество найденных документов: {total_docs}")
+        save_to_doc(all_documents_by_authority, "output_documents.docx")
     else:
         print("\nДокументы не найдены.")
 
