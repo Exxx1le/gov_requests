@@ -4,6 +4,7 @@ from docx import Document  # Для создания DOC-файла
 import os
 from pathlib import Path
 import docx
+from constants import AUTHORITY_NAMES
 
 # URL для запроса документов
 API_URL = "http://publication.pravo.gov.ru/api/Documents"
@@ -73,18 +74,19 @@ def add_hyperlink(paragraph, text, url):
     paragraph._p.append(hyperlink)
     return hyperlink
 
-def save_to_doc(documents_by_authority, output_filename="documents.docx"):
+def save_to_doc(documents_by_authority, filename):
     """
     Сохраняет список документов в файл .docx, группируя их по органам власти
     """
     home_dir = str(Path.home())
-    output_path = os.path.join(home_dir, output_filename)
+    output_path = os.path.join(home_dir, filename)
     
     doc = Document()
 
-    for authority_name, documents in documents_by_authority.items():
-        # Добавляем название органа власти как заголовок
-        heading = doc.add_heading(authority_name, level=1)
+    for authority_id, documents in documents_by_authority.items():
+        # Используем словарь для получения названия органа власти
+        authority_name = AUTHORITY_NAMES.get(authority_id, authority_id)
+        doc.add_heading(authority_name, level=1)
         
         for doc_info in documents:
             eo_number = doc_info.get("eoNumber", "N/A")
@@ -106,7 +108,7 @@ def save_to_doc(documents_by_authority, output_filename="documents.docx"):
         doc.add_page_break()
 
     doc.save(output_path)
-    print(f"Документы успешно сохранены в файл: {output_path}")
+
 
 def generate_date_range(start_date, end_date):
     """
