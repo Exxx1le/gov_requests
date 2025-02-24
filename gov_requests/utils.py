@@ -1,26 +1,32 @@
-import requests
-from datetime import timedelta
-from docx import Document  # Для создания DOC-файла
 import os
+from datetime import timedelta
 from pathlib import Path
+
 import docx
+import requests
+from docx import Document  # Для создания DOC-файла
+
+from constants import AUTHORITY_ID, AUTHORITY_NAMES
 
 # URL для запроса документов
 API_URL = "http://publication.pravo.gov.ru/api/Documents"
 
+
 def fetch_documents_by_date(date, authority_id):
     """
-    Функция для получения документов за указанную дату и для указанного государственного органа.
+    Fetches documents for a specified date and government authority.
+    For the Government of the Russian Federation (authority_id=8005d8c9-4b6d-48d3-861a-2a37e69fccb3),
+    returns only resolutions (documentTypeId=fd5a8766-f6fd-4ac2-8fd9-66f414d314ac).
+    For other authorities, returns all document types.
 
-    :param date: Дата в формате DD.MM.YYYY
-    :param authority_id: GUID государственного органа
-    :return: Список найденных документов
+    Args:
+        date (str): Date in DD.MM.YYYY format
+        authority_id (str): GUID of the government authority
+
+    Returns:
+        list: List of found documents
     """
-    params = {
-        "periodType": "day",
-        "date": date,
-        "SignatoryAuthorityId": authority_id
-    }
+    params = {"periodType": "day", "date": date, "SignatoryAuthorityId": authority_id}
 
     try:
         response = requests.get(API_URL, params=params)
@@ -30,62 +36,78 @@ def fetch_documents_by_date(date, authority_id):
         # Фильтруем результаты для Правительства РФ
         if authority_id == "8005d8c9-4b6d-48d3-861a-2a37e69fccb3":
             return [
-                doc for doc in data.get("items", [])
+                doc
+                for doc in data.get("items", [])
                 if doc.get("documentTypeId") == "fd5a8766-f6fd-4ac2-8fd9-66f414d314ac"
             ]
-        
+
         # Для остальных органов возвращаем все документы
         return data.get("items", [])
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при выполнении запроса для даты {date}: {e}")
         return []
 
+
 def add_hyperlink(paragraph, text, url):
     """
-    Добавляет кликабельную гиперссылку в параграф.
-    
-    :param paragraph: Параграф документа
-    :param text: Отображаемый текст
-    :param url: URL для перехода
+    Adds a clickable hyperlink to a paragraph in a Word document.
+
+    Args:
+        paragraph: Document paragraph object
+        text (str): Display text for the hyperlink
+        url (str): URL for the hyperlink
+
+    Returns:
+        OxmlElement: Created hyperlink element
     """
     # Получаем связь с word документом
     part = paragraph.part
     r_id = part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
-    
+
     # Создаем гиперссылку
-    hyperlink = docx.oxml.shared.OxmlElement('w:hyperlink')
-    hyperlink.set(docx.oxml.shared.qn('r:id'), r_id)
-    
+    hyperlink = docx.oxml.shared.OxmlElement("w:hyperlink")
+    hyperlink.set(docx.oxml.shared.qn("r:id"), r_id)
+
     # Создаем элемент run
-    new_run = docx.oxml.shared.OxmlElement('w:r')
-    rPr = docx.oxml.shared.OxmlElement('w:rPr')
-    
+    new_run = docx.oxml.shared.OxmlElement("w:r")
+    rPr = docx.oxml.shared.OxmlElement("w:rPr")
+
     # Добавляем стиль для гиперссылки
-    rStyle = docx.oxml.shared.OxmlElement('w:rStyle')
-    rStyle.set(docx.oxml.shared.qn('w:val'), 'Hyperlink')
+    rStyle = docx.oxml.shared.OxmlElement("w:rStyle")
+    rStyle.set(docx.oxml.shared.qn("w:val"), "Hyperlink")
     rPr.append(rStyle)
-    
+
     # Добавляем текст
     new_run.append(rPr)
     new_run.text = text
     hyperlink.append(new_run)
-    
+
     paragraph._p.append(hyperlink)
     return hyperlink
 
-def save_to_doc(documents_by_authority, output_filename="documents.docx"):
+
+def save_to_doc(documents_by_authority, filename):
     """
-    Сохраняет список документов в файл .docx, группируя их по органам власти
+    Saves documents to a .docx file, grouping them by government authority.
+    Only authorities with documents will be included in the output file.
+
+    Args:
+        documents_by_authority (dict): Dictionary where keys are authority IDs and values are lists of documents
+        filename (str): Name of the output file
+
+    Returns:
+        None
     """
     home_dir = str(Path.home())
-    output_path = os.path.join(home_dir, output_filename)
-    
+    output_path = os.path.join(home_dir, filename)
+
     doc = Document()
 
-    for authority_name, documents in documents_by_authority.items():
-        # Добавляем название органа власти как заголовок
-        heading = doc.add_heading(authority_name, level=1)
-        
+    for authority_id, documents in documents_by_authority.items():
+        # Используем словарь для получения названия органа власти
+        authority_name = AUTHORITY_NAMES.get(authority_id, authority_id)
+        doc.add_heading(authority_name, level=1)
+
         for doc_info in documents:
             eo_number = doc_info.get("eoNumber", "N/A")
             document_name = doc_info.get("complexName", "Название не указано")
@@ -101,20 +123,23 @@ def save_to_doc(documents_by_authority, output_filename="documents.docx"):
 
             # Добавляем пустую строку между документами
             doc.add_paragraph("")
-        
+
         # Добавляем разделитель между органами власти
         doc.add_page_break()
 
     doc.save(output_path)
-    print(f"Документы успешно сохранены в файл: {output_path}")
+
 
 def generate_date_range(start_date, end_date):
     """
-    Генерирует список дат между начальной и конечной датами (включительно).
+    Generates a list of dates between start_date and end_date (inclusive).
 
-    :param start_date: Начальная дата
-    :param end_date: Конечная дата
-    :return: Список дат в формате DD.MM.YYYY
+    Args:
+        start_date (datetime.date): Start date
+        end_date (datetime.date): End date
+
+    Returns:
+        list: List of dates in DD.MM.YYYY format
     """
     dates = []
     current_date = start_date
@@ -122,3 +147,33 @@ def generate_date_range(start_date, end_date):
         dates.append(current_date.strftime("%d.%m.%Y"))
         current_date += timedelta(days=1)
     return dates
+
+
+def process_documents(start_date, end_date):
+    """
+    Main function for fetching and processing documents.
+    Creates a Word document with documents grouped by authority.
+
+    Args:
+        start_date (datetime.date): Start date for document search
+        end_date (datetime.date): End date for document search
+
+    Returns:
+        None
+    """
+    current_date = start_date
+    all_documents_by_authority = {}
+
+    while current_date <= end_date:
+        formatted_date = current_date.strftime("%d.%m.%Y")
+
+        for authority_id in AUTHORITY_ID:
+            documents = fetch_documents_by_date(formatted_date, authority_id)
+            if documents:
+                if authority_id not in all_documents_by_authority:
+                    all_documents_by_authority[authority_id] = []
+                all_documents_by_authority[authority_id].extend(documents)
+
+        current_date += timedelta(days=1)
+
+    save_to_doc(all_documents_by_authority, f"Документы за {start_date} - {end_date}.docx")
