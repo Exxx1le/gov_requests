@@ -15,34 +15,32 @@ API_URL = "http://publication.pravo.gov.ru/api/Documents"
 def fetch_documents_by_date(date, authority_id):
     """
     Fetches documents for a specified date and government authority.
-    For the Government of the Russian Federation (authority_id=8005d8c9-4b6d-48d3-861a-2a37e69fccb3),
-    returns only resolutions (documentTypeId=fd5a8766-f6fd-4ac2-8fd9-66f414d314ac).
-    For other authorities, returns all document types.
+    Excludes resolutions (documentTypeId=7ff5b3b5-3757-44f1-bb76-3766cabe3593)
+    for all authorities.
 
     Args:
         date (str): Date in DD.MM.YYYY format
         authority_id (str): GUID of the government authority
 
     Returns:
-        list: List of found documents
+        list: List of found documents (excluding resolutions)
     """
-    params = {"periodType": "day", "date": date, "SignatoryAuthorityId": authority_id}
+    params = {
+        "periodType": "day",
+        "date": date,
+        "SignatoryAuthorityId": authority_id
+    }
 
     try:
         response = requests.get(API_URL, params=params)
         response.raise_for_status()
         data = response.json()
 
-        # Фильтруем результаты для Правительства РФ
-        if authority_id == "8005d8c9-4b6d-48d3-861a-2a37e69fccb3":
-            return [
-                doc
-                for doc in data.get("items", [])
-                if doc.get("documentTypeId") == "fd5a8766-f6fd-4ac2-8fd9-66f414d314ac"
-            ]
-
-        # Для остальных органов возвращаем все документы
-        return data.get("items", [])
+        # Фильтруем результаты, исключая распоряжения
+        return [
+            doc for doc in data.get("items", [])
+            if doc.get("documentTypeId") != "7ff5b3b5-3757-44f1-bb76-3766cabe3593"
+        ]
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при выполнении запроса для даты {date}: {e}")
         return []
@@ -176,4 +174,5 @@ def process_documents(start_date, end_date):
 
         current_date += timedelta(days=1)
 
-    save_to_doc(all_documents_by_authority, f"Документы за {start_date} - {end_date}.docx")
+    save_to_doc(all_documents_by_authority, 
+                f"Документы за {start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}.docx")

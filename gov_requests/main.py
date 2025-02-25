@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, F
@@ -65,9 +64,10 @@ async def process_calendar(callback_query: CallbackQuery, callback_data: SimpleC
                 return
 
             await callback_query.message.answer("Начинаю поиск документов...")
+            filename = f"Документы за {start_date.strftime('%Y-%m-%d')} - {date.strftime('%Y-%m-%d')}.docx"
             process_documents(start_date, date)
-
-            doc_path = str(Path.home() / "output_documents.docx")
+            
+            doc_path = str(Path.home() / filename)
             try:
                 await callback_query.message.answer_document(FSInputFile(doc_path))
                 os.remove(doc_path)
