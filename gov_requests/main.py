@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -8,10 +9,12 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import BotCommand, BotCommandScopeDefault, CallbackQuery, FSInputFile, Message
 from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
 
-from config import TELEGRAM_BOT_KEY
+from config import load_config
 from utils import process_documents
 
-bot = Bot(token=TELEGRAM_BOT_KEY)
+# Загружаем конфигурацию
+config = load_config()
+bot = Bot(token=config.tg_bot.token)
 dp = Dispatcher()
 
 

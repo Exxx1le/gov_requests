@@ -1,2 +1,4 @@
-config.py
+.env
 
+.mypy_cache/
+__pycache__/
