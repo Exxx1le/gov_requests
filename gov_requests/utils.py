@@ -96,9 +96,6 @@ def save_to_doc(documents_by_authority, filename):
     Returns:
         None
     """
-    home_dir = str(Path.home())
-    output_path = os.path.join(home_dir, filename)
-
     doc = Document()
 
     for authority_id, documents in documents_by_authority.items():
@@ -125,7 +122,13 @@ def save_to_doc(documents_by_authority, filename):
         # Добавляем разделитель между органами власти
         doc.add_page_break()
 
+    os.makedirs('generated', exist_ok=True)
+
+    output_path = os.path.join('generated', filename)
+
     doc.save(output_path)
+
+    return output_path
 
 
 def generate_date_range(start_date, end_date):
@@ -157,8 +160,9 @@ def process_documents(start_date, end_date):
         end_date (datetime.date): End date for document search
 
     Returns:
-        None
+        str: Path to generated DOCX file
     """
+
     current_date = start_date
     all_documents_by_authority = {}
 
@@ -167,12 +171,24 @@ def process_documents(start_date, end_date):
 
         for authority_id in AUTHORITY_ID:
             documents = fetch_documents_by_date(formatted_date, authority_id)
+
             if documents:
                 if authority_id not in all_documents_by_authority:
                     all_documents_by_authority[authority_id] = []
+
                 all_documents_by_authority[authority_id].extend(documents)
 
         current_date += timedelta(days=1)
 
-    save_to_doc(all_documents_by_authority, 
-                f"Документы за {start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}.docx")
+    filename = (
+        f"Документы за "
+        f"{start_date.strftime('%Y-%m-%d')} - "
+        f"{end_date.strftime('%Y-%m-%d')}.docx"
+    )
+
+    output_path = save_to_doc(
+        all_documents_by_authority,
+        filename
+    )
+
+    return output_path
