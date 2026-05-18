@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gov Requests</title>
+</head>
+<body>
+
+    <h1>Выгрузка документов</h1>
+
+    <form action="/generate" method="post">
+
+        <label>Начальная дата</label>
+        <input type="date" name="start_date" required>
+
+        <br><br>
+
+        <label>Конечная дата</label>
+        <input type="date" name="end_date" required>
+
+        <br><br>
+
+        <button type="submit">
+            Скачать DOCX
+        </button>
+
+    </form>
+
+</body>
+</html>
